@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — SQL Payroll Support</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="site-header"><img src="assets/brand/sql-logo.png" alt="SQL Payroll" /></header>
+<div class="wrap">
+
+  <div id="login-screen" class="login-wrap card">
+    <h1>Admin</h1>
+    <p class="muted">Sign in to view live progress and manage questions.</p>
+    <label>Email</label>
+    <input id="login-email" type="email" placeholder="you@example.com" />
+    <label>Password</label>
+    <input id="login-password" type="password" placeholder="Password" />
+    <button id="login-btn" style="width:100%;">Sign in</button>
+    <p id="login-error" class="error-text"></p>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <div class="top-bar">
+      <div>
+        <h1>SQL Payroll Support — Admin</h1>
+        <p class="muted" id="whoami"></p>
+      </div>
+      <button class="secondary" id="logout-btn">Sign out</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="progress">Live Progress</button>
+      <button class="tab-btn" data-tab="questions">Questions</button>
+      <button class="tab-btn" data-tab="candidates">Candidates</button>
+    </div>
+
+    <div id="tab-progress" class="tab-panel active">
+      <div class="card">
+        <h2>Learning — live</h2>
+        <table>
+          <thead><tr><th>Status</th><th>Name</th><th>Day</th><th>Step</th><th>Last active</th><th></th></tr></thead>
+          <tbody id="learning-body"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Testing — live</h2>
+        <table>
+          <thead><tr><th>Status</th><th>Name</th><th>Day</th><th>Progress</th><th>Score</th><th>Flags</th><th>Started</th><th></th></tr></thead>
+          <tbody id="candidates-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-questions" class="tab-panel">
+      <div class="card">
+        <div class="top-bar">
+          <h2 style="margin:0;">Question bank</h2>
+          <div>
+            <button class="secondary" id="seed-questions-btn">Seed 250 Questions</button>
+            <button id="add-question-btn">+ Add question</button>
+          </div>
+        </div>
+        <p id="seed-status" class="muted"></p>
+        <div class="day-filter" id="day-filter"></div>
+        <table>
+          <thead><tr><th>Question</th><th>Correct</th><th></th></tr></thead>
+          <tbody id="questions-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-candidates" class="tab-panel">
+      <div class="card">
+        <h2>Passing score</h2>
+        <p class="muted">Minimum percentage a candidate needs on a day's test to pass it and unlock the next day.</p>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="passing-percent-input" type="number" min="0" max="100" style="max-width:100px; margin-bottom:0;" />
+          <span>%</span>
+          <button id="save-passing-percent-btn">Save</button>
+          <span id="passing-percent-saved" class="muted"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Candidate records</h2>
+        <table>
+          <thead><tr><th>Name / Email</th><th>Day 1</th><th>Day 2</th><th>Day 3</th><th>Day 4</th><th>Day 5</th><th>Overall</th><th>Report</th><th></th></tr></thead>
+          <tbody id="candidate-profiles-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="candidate-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal">
+    <button class="close" id="candidate-modal-close">&times;</button>
+    <div id="candidate-modal-body"></div>
+  </div>
+</div>
+
+<div id="question-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal">
+    <button class="close" id="question-modal-close">&times;</button>
+    <div id="question-modal-body"></div>
+  </div>
+</div>
+
+<div id="report-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal">
+    <button class="close" id="report-modal-close">&times;</button>
+    <div id="report-modal-body"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Candidates collection: anyone with the site link can create their own
+    // attempt document and update it (this is how a candidate with no login
+    // writes their own progress/answers/flags). Anyone can also READ the
+    // whole collection, because the admin dashboard needs a live view and
+    // candidates themselves have no login. Deletes need real admin sign-in
+    // now that the admin site uses Firebase Authentication.
+    match /candidates/{candidateId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if request.auth != null;
+    }
+
+    // Learning progress: same shape as candidates — a candidate with no
+    // login writes their own live learning progress, admin dashboard reads
+    // the whole collection, deletes need admin sign-in.
+    match /learning_sessions/{sessionId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if request.auth != null;
+    }
+
+    // Question bank: candidates' browsers need to READ this to build a quiz
+    // attempt, so read stays open (same trade-off as everything else in this
+    // app — no candidate login exists). WRITES are the actual answer key,
+    // though, so only a signed-in admin (via the separate admin site's
+    // Firebase Authentication login) may create/update/delete questions.
+    match /questions/{questionId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // One profile per candidate, keyed by email — tracks per-day best
+    // score/pass status, which days are unlocked, and completion-PDF state.
+    // Same open-write trade-off as candidates/learning_sessions (no real
+    // candidate login exists in this app, documented throughout as a
+    // deliberate "deterrent, not real security" choice). Deletes (admin
+    // clearing out a candidate's record) need admin sign-in.
+    match /candidate_profiles/{email} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if request.auth != null;
+    }
+
+    // Single shared settings doc (e.g. the passing-score percentage).
+    // Candidates' browsers need to read it to know the pass bar; only a
+    // signed-in admin may change it.
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

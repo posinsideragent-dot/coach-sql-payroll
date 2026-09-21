@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — SQL Payroll Hard Mode</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="site-header"><img src="assets/brand/sql-logo.png" alt="SQL Payroll" /></header>
+<div class="wrap">
+
+  <div id="pin-gate" class="pin-gate">
+    <h1>Admin</h1>
+    <p class="muted">Enter the admin PIN to view live results.</p>
+    <input id="pin-input" type="text" placeholder="PIN" style="text-align:center;" />
+    <button id="pin-submit">Enter</button>
+    <p id="pin-error" style="color:#b00020; font-size:13px;"></p>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <div class="card">
+      <h1>SQL Payroll Support — Hard Mode</h1>
+      <p class="subtitle">Live results</p>
+      <table>
+        <thead>
+          <tr><th>Status</th><th>Name</th><th>Progress</th><th>Score</th><th>Flags</th><th>Started</th></tr>
+        </thead>
+        <tbody id="candidates-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div id="detail-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal">
+    <button class="close" id="detail-close">&times;</button>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
+<script type="module" src="js/admin.js"></script>
+</body>
+</html>

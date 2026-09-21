@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SQL Payroll Support — Hard Mode Assessment</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="site-header"><img src="assets/brand/sql-logo.png" alt="SQL Payroll" /></header>
+<div class="wrap">
+
+  <div id="screen-name" class="card">
+    <h1>SQL Payroll Support</h1>
+    <p class="subtitle">Hard Mode Assessment</p>
+    <ul class="rules">
+      <li>You'll pick which onboarding day you're testing on, then take a 20-question quiz on it — a fresh mix every attempt.</li>
+      <li>Haven't studied this topic yet? <a href="learn.html">Go learn it first</a> — you can come back here after.</li>
+      <li>Day 2 onward unlocks only once you've passed the test for the day before it. You can resit a failed day as many times as you need.</li>
+      <li>Every choice is written to about the same length on purpose. Length is never a clue.</li>
+      <li>Several choices in each question describe a real, adjacent SQL Payroll feature. Only one is exactly right for the situation described.</li>
+      <li id="rule-time"></li>
+      <li>The test runs fullscreen. Exiting fullscreen, switching tabs, and copy/paste are all logged.</li>
+      <li>Once you start, the timer does not pause. Answer every question you can before time runs out — it auto-submits.</li>
+    </ul>
+    <input id="name-input" type="text" placeholder="Type your full name" />
+    <input id="email-input" type="email" placeholder="Type your email" />
+    <button id="start-btn">Continue</button>
+  </div>
+
+  <div id="screen-day-pick" class="card" style="display:none;">
+    <h2>Which day are you testing on today?</h2>
+    <p class="muted">Pick the onboarding topic you've been working on.</p>
+    <div id="day-pick-options"></div>
+  </div>
+
+  <div id="screen-quiz" class="card" style="display:none;">
+    <div class="top-bar">
+      <span id="progress-label"></span>
+      <span class="timer" id="timer-label"></span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+
+    <div class="skill-meter">
+      <div class="skill-meter-label">
+        <span id="skill-topic"></span>
+        <span id="skill-count"></span>
+      </div>
+      <div class="progress-track"><div class="skill-fill" id="skill-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="q-topic" id="q-topic"></div>
+    <div class="q-text" id="q-text"></div>
+    <div id="options"></div>
+    <div class="nav-row">
+      <button class="secondary" id="prev-btn">Back</button>
+      <button id="next-btn">Next</button>
+    </div>
+  </div>
+
+  <div id="screen-done" class="card" style="display:none;">
+    <h2>Assessment submitted</h2>
+    <div class="score-big" id="final-score"></div>
+    <p class="muted" id="final-level"></p>
+    <p id="pass-fail-banner"></p>
+    <p class="muted">Your result has been recorded. Your supervisor will follow up with next steps.</p>
+    <button class="secondary" id="home-btn">Back to home</button>
+  </div>
+
+</div>
+
+<script src="vendor/emailjs/email.min.js"></script>
+<script type="module">
+  import { startAttempt, getState, getCurrentQuestion, answerCurrent, goNext, goPrev, timeRemainingMs, submitAttempt } from "./js/quiz.js";
+  import { renderDayPicker } from "./js/learning.js";
+  import { sendMarkingEmail, computeLevel } from "./js/email-notify.js";
+  import { getCandidateProfile, unlockedDaysFromProfile, recordAttemptResult } from "./js/candidate-progress.js";
+  import { TIME_LIMIT_MINUTES } from "./firebase-config.js";
+
+  document.getElementById("rule-time").textContent =
+    `You have ${TIME_LIMIT_MINUTES} minutes total, closed notes, closed devices.`;
+
+  let timerInterval = null;
+  let candidateName = "";
+  let candidateEmail = "";
+
+  const params = new URLSearchParams(window.location.search);
+  const preselectedDay = Number(params.get("day")) || null;
+  const prefilledEmail = params.get("email");
+  if (prefilledEmail) document.getElementById("email-input").value = prefilledEmail;
+
+  document.getElementById("start-btn").addEventListener("click", async () => {
+    const name = document.getElementById("name-input").value.trim();
+    const email = document.getElementById("email-input").value.trim().toLowerCase();
+    if (!name || !email) { alert("Please type your name and email first."); return; }
+    candidateName = name;
+    candidateEmail = email;
+    document.getElementById("screen-name").style.display = "none";
+
+    const profile = await getCandidateProfile(candidateEmail);
+    const unlockedDays = unlockedDaysFromProfile(profile);
+
+    if (preselectedDay) {
+      if (!unlockedDays.has(preselectedDay)) {
+        alert(`Day ${preselectedDay} isn't unlocked yet — pass the earlier days first.`);
+        document.getElementById("screen-name").style.display = "block";
+        return;
+      }
+      beginQuiz(preselectedDay);
+    } else {
+      document.getElementById("screen-day-pick").style.display = "block";
+      renderDayPicker(document.getElementById("day-pick-options"), beginQuiz, unlockedDays);
+    }
+  });
+
+  async function beginQuiz(day) {
+    document.getElementById("screen-day-pick").style.display = "none";
+    document.getElementById("screen-quiz").style.display = "block";
+    document.getElementById("q-text").textContent = "Loading questions…";
+    await startAttempt(candidateName, candidateEmail, day);
+    renderQuestion();
+    timerInterval = setInterval(tick, 500);
+  }
+
+  function tick() {
+    const ms = timeRemainingMs();
+    const mins = Math.floor(ms / 60000);
+    const secs = Math.floor((ms % 60000) / 1000);
+    document.getElementById("timer-label").textContent =
+      `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    if (ms <= 0) {
+      clearInterval(timerInterval);
+      finish();
+    }
+  }
+
+  function renderQuestion() {
+    const st = getState();
+    const q = getCurrentQuestion();
+    document.getElementById("progress-label").textContent =
+      `Question ${st.currentIndex + 1} of ${st.picked.length}`;
+    document.getElementById("progress-fill").style.width =
+      `${((st.currentIndex) / st.picked.length) * 100}%`;
+    document.getElementById("q-topic").textContent = `Day ${q.day} — ${q.topic}`;
+    document.getElementById("q-text").textContent = q.question;
+
+    const correctSoFar = st.picked.filter((pq, i) => st.answers[i] === pq.correctDisplayIndex).length;
+    document.getElementById("skill-topic").textContent = `${q.topic} skill`;
+    document.getElementById("skill-count").textContent = `${correctSoFar} / ${st.picked.length} correct`;
+    document.getElementById("skill-fill").style.width = `${(correctSoFar / st.picked.length) * 100}%`;
+
+    const answered = st.answers[st.currentIndex] !== null;
+
+    const optionsEl = document.getElementById("options");
+    optionsEl.innerHTML = "";
+    q.options.forEach((opt, i) => {
+      const btn = document.createElement("button");
+      const selected = st.answers[st.currentIndex] === i;
+      let cls = "option";
+      if (answered) {
+        if (i === q.correctDisplayIndex) cls += " correct";
+        else if (selected) cls += " incorrect";
+      } else if (selected) {
+        cls += " selected";
+      }
+      btn.className = cls;
+      btn.textContent = `${String.fromCharCode(65 + i)}) ${opt}`;
+      btn.disabled = answered;
+      btn.addEventListener("click", async () => {
+        if (getState().answers[getState().currentIndex] !== null) return;
+        await answerCurrent(i);
+        renderQuestion();
+      });
+      optionsEl.appendChild(btn);
+    });
+
+    document.getElementById("prev-btn").style.visibility = st.currentIndex === 0 ? "hidden" : "visible";
+    document.getElementById("next-btn").textContent =
+      st.currentIndex === st.picked.length - 1 ? "Submit" : "Next";
+  }
+
+  document.getElementById("home-btn").addEventListener("click", () => {
+    window.location.href = "index.html";
+  });
+
+  document.getElementById("prev-btn").addEventListener("click", () => { goPrev(); renderQuestion(); });
+  document.getElementById("next-btn").addEventListener("click", () => {
+    const st = getState();
+    if (st.answers[st.currentIndex] === null) {
+      alert("Please select an answer before continuing.");
+      return;
+    }
+    if (st.currentIndex === st.picked.length - 1) {
+      finish();
+    } else {
+      goNext();
+      renderQuestion();
+    }
+  });
+
+  async function finish() {
+    clearInterval(timerInterval);
+    const result = await submitAttempt();
+    document.getElementById("screen-quiz").style.display = "none";
+    document.getElementById("screen-done").style.display = "block";
+    document.getElementById("final-score").textContent = `${result.score} / ${result.maxScore}`;
+    document.getElementById("final-level").textContent = `Level: ${computeLevel(result.score, result.maxScore)}`;
+    sendMarkingEmail(result);
+
+    const { passed, passingPercent, allPassed, profile } = await recordAttemptResult({
+      name: result.name,
+      email: result.email,
+      day: result.day,
+      score: result.score,
+      maxScore: result.maxScore,
+      level: computeLevel(result.score, result.maxScore),
+    });
+
+    const banner = document.getElementById("pass-fail-banner");
+    if (passed) {
+      banner.innerHTML = `<strong style="color:var(--green);">PASSED</strong> — Day ${result.day} unlocked the next day (pass mark: ${passingPercent}%).`;
+    } else {
+      banner.innerHTML = `<strong style="color:var(--red);">NOT PASSED</strong> — you can resit Day ${result.day} any time (pass mark: ${passingPercent}%).`;
+    }
+
+    if (allPassed) {
+      banner.innerHTML += `<br><strong style="color:var(--navy);">All 5 days passed!</strong> Your supervisor will review your results.`;
+    }
+  }
+</script>
+</body>
+</html>

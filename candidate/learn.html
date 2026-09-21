@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SQL Payroll Support — Learn</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="site-header"><img src="assets/brand/sql-logo.png" alt="SQL Payroll" /></header>
+<div class="wrap">
+
+  <div id="screen-name" class="card">
+    <h1>SQL Payroll Support</h1>
+    <p class="subtitle">Learning</p>
+    <p class="muted">Type your name and email so your progress shows up for your supervisor, then pick a topic to learn — about 20 minutes each. Day 2 onward unlocks once you've passed the test for the day before it.</p>
+    <input id="name-input" type="text" placeholder="Type your full name" />
+    <input id="email-input" type="email" placeholder="Type your email" />
+    <button id="start-btn">Continue</button>
+  </div>
+
+  <div id="screen-day-pick" class="card" style="display:none;">
+    <h2>Which topic do you want to learn?</h2>
+    <p class="muted">Each one is a short visual walkthrough, about 20 minutes.</p>
+    <div id="day-pick-options"></div>
+    <p class="muted" style="margin-top:20px;">Already studied? <a href="test.html">Go straight to testing</a>.</p>
+  </div>
+
+  <div id="screen-learn" class="card" style="display:none;">
+    <div class="top-bar">
+      <span id="learn-topic"></span>
+      <span class="timer" id="learn-timer"></span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="learn-progress-fill" style="width:0%"></div></div>
+    <div id="learn-step-label" class="step-label"></div>
+    <div id="learn-content"></div>
+    <div class="nav-row">
+      <button class="secondary" id="learn-prev-btn">Back</button>
+      <button id="learn-next-btn">Next</button>
+    </div>
+    <div class="nav-row" style="margin-top:10px;">
+      <a class="secondary" id="home-btn" href="index.html" style="text-decoration:none;">Back to home</a>
+      <button class="secondary" id="learn-ready-btn">Skip to the test</button>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+  import { renderDayPicker, startLearningModule } from "./js/learning.js";
+  import { getCandidateProfile, unlockedDaysFromProfile } from "./js/candidate-progress.js";
+
+  let candidateName = "";
+  let candidateEmail = "";
+
+  document.getElementById("start-btn").addEventListener("click", async () => {
+    const name = document.getElementById("name-input").value.trim();
+    const email = document.getElementById("email-input").value.trim().toLowerCase();
+    if (!name || !email) { alert("Please type your name and email first."); return; }
+    candidateName = name;
+    candidateEmail = email;
+    document.getElementById("screen-name").style.display = "none";
+    document.getElementById("screen-day-pick").style.display = "block";
+    document.getElementById("day-pick-options").innerHTML = "<p class=\"muted\">Loading your progress…</p>";
+    const profile = await getCandidateProfile(candidateEmail);
+    const unlockedDays = unlockedDaysFromProfile(profile);
+    renderDayPicker(document.getElementById("day-pick-options"), onDayPicked, unlockedDays);
+  });
+
+  function onDayPicked(day) {
+    document.getElementById("screen-day-pick").style.display = "none";
+    document.getElementById("screen-learn").style.display = "block";
+    startLearningModule(candidateName, candidateEmail, day, {
+      topic: document.getElementById("learn-topic"),
+      timer: document.getElementById("learn-timer"),
+      content: document.getElementById("learn-content"),
+      stepLabel: document.getElementById("learn-step-label"),
+      progressFill: document.getElementById("learn-progress-fill"),
+      prevBtn: document.getElementById("learn-prev-btn"),
+      nextBtn: document.getElementById("learn-next-btn"),
+      readyBtn: document.getElementById("learn-ready-btn"),
+    }, () => {
+      window.location.href = `test.html?day=${day}&email=${encodeURIComponent(candidateEmail)}`;
+    });
+  }
+</script>
+</body>
+</html>
