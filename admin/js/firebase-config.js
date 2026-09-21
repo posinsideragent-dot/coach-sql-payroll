@@ -13,11 +13,12 @@ export const firebaseConfig = {
   appId: "1:121383571640:web:6309e4749c63056415e44d",
 };
 
-// A separate EmailJS template from the SQL Account app — used for the
-// "candidate passed all 5 days" completion report. Sending it is an
-// admin-approved action from this site's Candidates tab (not automatic),
-// so this is the only place that actually calls emailjs.send() with it.
-export const EMAILJS_SERVICE_ID = "";
-export const EMAILJS_COMPLETION_TEMPLATE_ID = "";
-export const EMAILJS_PUBLIC_KEY = "";
+// Same EmailJS account/service as the SQL Account app (free-tier quota is
+// shared), but its own template for the "candidate passed all 5 days"
+// completion report. Sending it is an admin-approved action from this
+// site's Candidates tab (not automatic), so this is the only place that
+// actually calls emailjs.send() with it.
+export const EMAILJS_SERVICE_ID = "service_4pvav1n";
+export const EMAILJS_COMPLETION_TEMPLATE_ID = "template_oc3xwuf";
+export const EMAILJS_PUBLIC_KEY = "qEx9SNi8cHxY8jjxg";
 export const MARKING_EMAIL_TO = "posinsideragent@gmail.com";

@@ -37,21 +37,15 @@ export const POINTS_PER_QUESTION = 4; // 20 questions x 4 = 80 points per attemp
 // early if they finish sooner.
 export const LEARNING_MODULE_MINUTES = 20;
 
-// Fill these in after creating a free account at https://www.emailjs.com/ —
-// add an Email Service (e.g. connect Gmail) and an Email Template there, then
-// paste the three IDs it gives you. Used to auto-send a marking-sheet email
-// the moment a candidate finishes. You'll also need to vendor EmailJS's SDK
-// locally (see vendor/emailjs/) — see README for why (same reason as Firebase).
+// Deliberately left blank for this app: unlike the SQL Account app, this
+// candidate site does NOT send a per-attempt marking-sheet email (the
+// EmailJS free tier's 2-template cap was already spent on the SQL Account
+// app's own templates, and only the completion report was wanted here).
+// sendMarkingEmail() in js/email-notify.js still runs, but fails silently
+// and harmlessly with these blank — it never blocks the candidate's score
+// screen either way. See admin/js/firebase-config.js for the completion
+// report's real EmailJS IDs, sent from the admin dashboard instead.
 export const EMAILJS_SERVICE_ID = "";
 export const EMAILJS_TEMPLATE_ID = "";
 export const EMAILJS_PUBLIC_KEY = "";
 export const MARKING_EMAIL_TO = "posinsideragent@gmail.com";
-
-// A SECOND EmailJS template, for the one-time "candidate passed all 5 days"
-// completion report — the full report goes directly in the email body as
-// plain fields (candidate_name, candidate_email, day1_topic/score/level
-// through day5_..., overall_score, overall_level, ready_to_work,
-// completed_at) — no PDF/file attachment, since that needs either EmailJS's
-// paid plan or Firebase's paid Blaze plan for Storage, neither of which
-// this app uses. Create this as its own template in the same EmailJS account.
-export const EMAILJS_COMPLETION_TEMPLATE_ID = "";
