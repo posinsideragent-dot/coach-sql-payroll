@@ -1,6 +1,6 @@
 import {
   db, auth, collection, doc, setDoc, updateDoc, deleteDoc, addDoc,
-  getDocs, onSnapshot, query, where, serverTimestamp,
+  getDocs, onSnapshot, query, where, serverTimestamp, writeBatch,
   signInWithEmailAndPassword, signOut, onAuthStateChanged,
 } from "./firebase-init.js";
 import {
@@ -532,10 +532,10 @@ function openQuestionForm(id) {
 document.getElementById("seed-questions-btn").addEventListener("click", async () => {
   const statusEl = document.getElementById("seed-status");
   if (!confirm("This adds 250 questions (50 per day) to the question bank. Run this only once — running it again will duplicate them. Continue?")) return;
-  statusEl.textContent = "Seeding… this takes a minute, don't close the tab.";
+  statusEl.textContent = "Seeding… this should only take a couple seconds.";
   document.getElementById("seed-questions-btn").disabled = true;
   try {
-    const result = await seedPayrollQuestions(db, collection, addDoc);
+    const result = await seedPayrollQuestions(db, collection, doc, writeBatch);
     statusEl.textContent = `Done: ${result.ok} added, ${result.failed} failed (of ${result.total}).`;
     await loadQuestions();
   } catch (e) {

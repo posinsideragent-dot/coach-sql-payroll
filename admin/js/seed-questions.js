@@ -322,18 +322,18 @@ function buildQuestionDocs() {
   return docs;
 }
 
-export async function seedPayrollQuestions(db, collection, addDoc) {
+// One atomic batch (250 writes, well under Firestore's 500-op batch limit)
+// instead of 250 sequential addDoc() round trips — much faster and either
+// fully succeeds or fully fails, so there's no risk of a half-seeded bank
+// from a dropped connection partway through.
+export async function seedPayrollQuestions(db, collection, doc, writeBatch) {
   const docs = buildQuestionDocs();
-  let ok = 0;
-  let failed = 0;
-  for (const d of docs) {
-    try {
-      await addDoc(collection(db, "questions"), d);
-      ok += 1;
-    } catch (e) {
-      failed += 1;
-      console.error("seed failed", d.q, e);
-    }
-  }
-  return { total: docs.length, ok, failed };
+  const batch = writeBatch(db);
+  const questionsRef = collection(db, "questions");
+  docs.forEach((d) => {
+    const ref = doc(questionsRef);
+    batch.set(ref, d);
+  });
+  await batch.commit();
+  return { total: docs.length, ok: docs.length, failed: 0 };
 }
