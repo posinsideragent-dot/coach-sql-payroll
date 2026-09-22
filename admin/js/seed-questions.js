@@ -337,3 +337,20 @@ export async function seedPayrollQuestions(db, collection, doc, writeBatch) {
   await batch.commit();
   return { total: docs.length, ok: docs.length, failed: 0 };
 }
+
+// Deletes every doc currently in the "questions" collection, in batches of
+// 500 (Firestore's per-batch write limit) — used to clean up after an
+// accidental double-seed, or to reset the bank before reseeding.
+export async function clearAllQuestions(db, collection, getDocs, doc, writeBatch, deleteDoc) {
+  const snap = await getDocs(collection(db, "questions"));
+  const ids = snap.docs.map((d) => d.id);
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    const batch = writeBatch(db);
+    chunk.forEach((id) => batch.delete(doc(collection(db, "questions"), id)));
+    await batch.commit();
+    deleted += chunk.length;
+  }
+  return { deleted };
+}

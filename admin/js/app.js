@@ -6,7 +6,7 @@ import {
 import {
   EMAILJS_SERVICE_ID, EMAILJS_COMPLETION_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, MARKING_EMAIL_TO,
 } from "./firebase-config.js";
-import { seedPayrollQuestions } from "./seed-questions.js";
+import { seedPayrollQuestions, clearAllQuestions } from "./seed-questions.js";
 
 const LEVELS = [
   { min: 90, label: "Advanced" },
@@ -542,6 +542,23 @@ document.getElementById("seed-questions-btn").addEventListener("click", async ()
     statusEl.textContent = "Seeding failed: " + e.message;
   } finally {
     document.getElementById("seed-questions-btn").disabled = false;
+  }
+});
+
+document.getElementById("clear-questions-btn").addEventListener("click", async () => {
+  const statusEl = document.getElementById("seed-status");
+  const count = questionsCache.length;
+  if (!confirm(`This permanently deletes ALL ${count} question(s) currently in the bank. This cannot be undone. Continue?`)) return;
+  statusEl.textContent = "Deleting…";
+  document.getElementById("clear-questions-btn").disabled = true;
+  try {
+    const result = await clearAllQuestions(db, collection, getDocs, doc, writeBatch, deleteDoc);
+    statusEl.textContent = `Deleted ${result.deleted} question(s).`;
+    await loadQuestions();
+  } catch (e) {
+    statusEl.textContent = "Delete failed: " + e.message;
+  } finally {
+    document.getElementById("clear-questions-btn").disabled = false;
   }
 });
 
