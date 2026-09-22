@@ -57,11 +57,26 @@ export function startProctoring(onFlag) {
   });
 }
 
+// Without solid user-activation (e.g. a click that the browser doesn't
+// fully credit as one, which happens in some automated/edge-case contexts),
+// requestFullscreen() can fail to settle its promise at all instead of
+// cleanly rejecting -- leaving whatever awaits it stuck forever. A 3s
+// timeout race guards against that: a candidate's fullscreen hiccup should
+// never block the quiz itself from rendering, only skip the fullscreen
+// lock (already logged separately via the fullscreenchange listener).
+function timeout(ms) {
+  return new Promise((resolve) => setTimeout(() => resolve("timeout"), ms));
+}
+
 export async function requestFullscreen() {
   const el = document.documentElement;
   try {
-    if (el.requestFullscreen) await el.requestFullscreen();
-    return true;
+    if (!el.requestFullscreen) return false;
+    const outcome = await Promise.race([
+      el.requestFullscreen().then(() => "ok"),
+      timeout(3000),
+    ]);
+    return outcome === "ok";
   } catch (e) {
     return false;
   }
