@@ -1,6 +1,6 @@
 import {
   db, auth, collection, doc, setDoc, updateDoc, deleteDoc, addDoc,
-  getDocs, onSnapshot, query, where, serverTimestamp,
+  getDocs, onSnapshot, query, where, serverTimestamp, writeBatch,
   signInWithEmailAndPassword, signOut, onAuthStateChanged,
 } from "./firebase-init.js";
 import {
@@ -220,6 +220,27 @@ async function deleteCandidate(id) {
   await deleteDoc(doc(db, "candidates", id));
 }
 
+// Removes a candidate_profiles doc AND every candidates/learning_sessions
+// doc tied to that email — the three collections aren't linked by a real
+// foreign key, just a shared email field, so a plain deleteDoc on the
+// profile alone silently leaves orphaned attempt/session rows behind.
+async function deleteCandidateCascade(email) {
+  const [candSnap, learnSnap] = await Promise.all([
+    getDocs(query(collection(db, "candidates"), where("email", "==", email))),
+    getDocs(query(collection(db, "learning_sessions"), where("email", "==", email))),
+  ]);
+  const refs = [
+    ...candSnap.docs.map((d) => doc(db, "candidates", d.id)),
+    ...learnSnap.docs.map((d) => doc(db, "learning_sessions", d.id)),
+    doc(db, "candidate_profiles", email),
+  ];
+  for (let i = 0; i < refs.length; i += 500) {
+    const batch = writeBatch(db);
+    refs.slice(i, i + 500).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+}
+
 document.getElementById("candidate-modal-close").addEventListener("click", () => {
   document.getElementById("candidate-modal").style.display = "none";
 });
@@ -306,8 +327,16 @@ function renderCandidateProfilesTable(profiles) {
     tbody.appendChild(tr);
   });
   tbody.querySelectorAll("[data-del-profile]").forEach((b) => b.addEventListener("click", async () => {
-    if (!confirm(`Delete all records for ${b.dataset.delProfile}? This cannot be undone.`)) return;
-    await deleteDoc(doc(db, "candidate_profiles", b.dataset.delProfile));
+    const email = b.dataset.delProfile;
+    if (!confirm(`Delete all records for ${email}? This removes their profile AND every individual test attempt and learning session. This cannot be undone.`)) return;
+    b.disabled = true;
+    try {
+      await deleteCandidateCascade(email);
+    } catch (e) {
+      alert("Delete failed: " + e.message);
+    } finally {
+      b.disabled = false;
+    }
   }));
   tbody.querySelectorAll("[data-review]").forEach((b) => b.addEventListener("click", () => openReportModal(profiles[b.dataset.review], b.dataset.review)));
 }
