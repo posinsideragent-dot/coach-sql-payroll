@@ -1,12 +1,11 @@
 import {
   db, auth, collection, doc, setDoc, updateDoc, deleteDoc, addDoc,
-  getDocs, onSnapshot, query, where, serverTimestamp, writeBatch,
+  getDocs, onSnapshot, query, where, serverTimestamp,
   signInWithEmailAndPassword, signOut, onAuthStateChanged,
 } from "./firebase-init.js";
 import {
   EMAILJS_SERVICE_ID, EMAILJS_COMPLETION_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, MARKING_EMAIL_TO,
 } from "./firebase-config.js";
-import { seedPayrollQuestions, clearAllQuestions } from "./seed-questions.js";
 
 const LEVELS = [
   { min: 90, label: "Advanced" },
@@ -528,39 +527,6 @@ function openQuestionForm(id) {
     }
   });
 }
-
-document.getElementById("seed-questions-btn").addEventListener("click", async () => {
-  const statusEl = document.getElementById("seed-status");
-  if (!confirm("This adds 250 questions (50 per day) to the question bank. Run this only once — running it again will duplicate them. Continue?")) return;
-  statusEl.textContent = "Seeding… this should only take a couple seconds.";
-  document.getElementById("seed-questions-btn").disabled = true;
-  try {
-    const result = await seedPayrollQuestions(db, collection, doc, writeBatch);
-    statusEl.textContent = `Done: ${result.ok} added, ${result.failed} failed (of ${result.total}).`;
-    await loadQuestions();
-  } catch (e) {
-    statusEl.textContent = "Seeding failed: " + e.message;
-  } finally {
-    document.getElementById("seed-questions-btn").disabled = false;
-  }
-});
-
-document.getElementById("clear-questions-btn").addEventListener("click", async () => {
-  const statusEl = document.getElementById("seed-status");
-  const count = questionsCache.length;
-  if (!confirm(`This permanently deletes ALL ${count} question(s) currently in the bank. This cannot be undone. Continue?`)) return;
-  statusEl.textContent = "Deleting…";
-  document.getElementById("clear-questions-btn").disabled = true;
-  try {
-    const result = await clearAllQuestions(db, collection, getDocs, doc, writeBatch, deleteDoc);
-    statusEl.textContent = `Deleted ${result.deleted} question(s).`;
-    await loadQuestions();
-  } catch (e) {
-    statusEl.textContent = "Delete failed: " + e.message;
-  } finally {
-    document.getElementById("clear-questions-btn").disabled = false;
-  }
-});
 
 document.getElementById("add-question-btn").addEventListener("click", () => openQuestionForm(null));
 document.getElementById("question-modal-close").addEventListener("click", () => {
