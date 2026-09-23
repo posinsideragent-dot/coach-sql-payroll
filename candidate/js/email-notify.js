@@ -1,6 +1,5 @@
-import {
-  EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, MARKING_EMAIL_TO,
-} from "../firebase-config.js";
+import { MAILER_URL, MAILER_SECRET, MARKING_EMAIL_TO } from "../firebase-config.js";
+import { sendMail } from "./mailer.js";
 
 // Percentage-based so the same tiers apply whether the day's max is 20, 40, etc.
 const LEVELS = [
@@ -15,41 +14,25 @@ export function computeLevel(score, maxScore) {
   return LEVELS.find((l) => pct >= l.min).label;
 }
 
-let initialized = false;
-function ensureInit() {
-  if (initialized) return;
-  // vendor/emailjs/email.min.js (loaded via <script> in index.html) exposes
-  // window.emailjs, the standard integration pattern for EmailJS's browser SDK.
-  if (window.emailjs && typeof window.emailjs.init === "function") {
-    window.emailjs.init(EMAILJS_PUBLIC_KEY);
-    initialized = true;
-  }
-}
-
 // Never throws — a failed or SEB-blocked send must never delay or error out
 // the candidate's own score screen.
 export async function sendMarkingEmail({ name, day, score, maxScore, scoreByDay, flagsCount }) {
   try {
-    ensureInit();
-    if (!window.emailjs) {
-      console.warn("EmailJS SDK not loaded — skipping marking email.");
-      return;
-    }
     const level = computeLevel(score, maxScore);
     const dayEntry = scoreByDay ? Object.entries(scoreByDay)[0] : null;
     const topic = dayEntry ? dayEntry[1].topic : "";
 
-    await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      to_email: MARKING_EMAIL_TO,
-      candidate_name: name || "(no name)",
-      day,
-      topic,
-      score,
-      max_score: maxScore,
-      level,
-      flags_count: flagsCount ?? 0,
-      submitted_at: new Date().toLocaleString(),
-    });
+    const subject = `[SQL Payroll] ${name || "(no name)"} — Day ${day} marking sheet`;
+    const body = [
+      `Candidate: ${name || "(no name)"}`,
+      `Day: ${day} — ${topic}`,
+      `Score: ${score} / ${maxScore}`,
+      `Level: ${level}`,
+      `Proctoring flags: ${flagsCount ?? 0}`,
+      `Submitted: ${new Date().toLocaleString()}`,
+    ].join("\n");
+
+    await sendMail(MAILER_URL, MAILER_SECRET, { to: MARKING_EMAIL_TO, subject, body });
   } catch (e) {
     console.error("marking email failed", e);
   }

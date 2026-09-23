@@ -37,15 +37,11 @@ export const POINTS_PER_QUESTION = 4; // 20 questions x 4 = 80 points per attemp
 // early if they finish sooner.
 export const LEARNING_MODULE_MINUTES = 20;
 
-// Deliberately left blank for this app: unlike the SQL Account app, this
-// candidate site does NOT send a per-attempt marking-sheet email (the
-// EmailJS free tier's 2-template cap was already spent on the SQL Account
-// app's own templates, and only the completion report was wanted here).
-// sendMarkingEmail() in js/email-notify.js still runs, but fails silently
-// and harmlessly with these blank — it never blocks the candidate's score
-// screen either way. See admin/js/firebase-config.js for the completion
-// report's real EmailJS IDs, sent from the admin dashboard instead.
-export const EMAILJS_SERVICE_ID = "";
-export const EMAILJS_TEMPLATE_ID = "";
-export const EMAILJS_PUBLIC_KEY = "";
+// Email sending (marking sheet + completion report) goes through a small
+// Google Apps Script Web App you deploy yourself under your own Gmail
+// account — no third-party email vendor, no per-template caps to worry
+// about. See ../coach-sql/mailer/README.md (same deployment, shared by
+// every product) for what it is and step-by-step deploy instructions.
+export const MAILER_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+export const MAILER_SECRET = "PASTE_YOUR_SHARED_SECRET_HERE";
 export const MARKING_EMAIL_TO = "posinsideragent@gmail.com";

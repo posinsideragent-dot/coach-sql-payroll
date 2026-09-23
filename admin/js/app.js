@@ -4,8 +4,9 @@ import {
   signInWithEmailAndPassword, signOut, onAuthStateChanged,
 } from "./firebase-init.js";
 import {
-  EMAILJS_SERVICE_ID, EMAILJS_COMPLETION_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, MARKING_EMAIL_TO,
+  MAILER_URL, MAILER_SECRET, MARKING_EMAIL_TO,
 } from "./firebase-config.js";
+import { sendMail } from "./mailer.js";
 
 const LEVELS = [
   { min: 90, label: "Advanced" },
@@ -16,13 +17,6 @@ const LEVELS = [
 function computeLevel(score, maxScore) {
   const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
   return LEVELS.find((l) => pct >= l.min).label;
-}
-
-let emailjsReady = false;
-function ensureEmailjs() {
-  if (emailjsReady || !window.emailjs) return;
-  window.emailjs.init(EMAILJS_PUBLIC_KEY);
-  emailjsReady = true;
 }
 
 const DAY_NAMES = {
@@ -432,29 +426,23 @@ function openReportModal(profile, email) {
     const errEl = document.getElementById("rf-error");
     const overallLevel = document.getElementById("rf-level").value;
     const readyToWork = document.getElementById("rf-ready").value;
-    ensureEmailjs();
-    if (!window.emailjs) {
-      errEl.textContent = "EmailJS didn't load — check your connection and try again.";
-      return;
-    }
-    const dayFields = {};
-    [1, 2, 3, 4, 5].forEach((d) => {
+    const dayLines = [1, 2, 3, 4, 5].map((d) => {
       const r = profile.perDay[d];
-      dayFields[`day${d}_topic`] = DAY_NAMES[d];
-      dayFields[`day${d}_score`] = `${r.score} / ${r.maxScore} (${r.percent.toFixed(0)}%)`;
-      dayFields[`day${d}_level`] = r.level;
+      return `Day ${d} — ${DAY_NAMES[d]}: ${r.score} / ${r.maxScore} (${r.percent.toFixed(0)}%) — ${r.level}`;
     });
+    const subject = `[SQL Payroll] ${profile.name} — Completion report`;
+    const body = [
+      `Candidate: ${profile.name} <${email}>`,
+      "",
+      ...dayLines,
+      "",
+      `Overall: ${totalScore} / ${totalMax} (${overallPercent.toFixed(1)}%)`,
+      `Overall level: ${overallLevel}`,
+      `Ready to start work: ${readyToWork}`,
+      `Completed: ${new Date().toLocaleString()}`,
+    ].join("\n");
     try {
-      await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_COMPLETION_TEMPLATE_ID, {
-        to_email: MARKING_EMAIL_TO,
-        candidate_name: profile.name,
-        candidate_email: email,
-        ...dayFields,
-        overall_score: `${totalScore} / ${totalMax} (${overallPercent.toFixed(1)}%)`,
-        overall_level: overallLevel,
-        ready_to_work: readyToWork,
-        completed_at: new Date().toLocaleString(),
-      });
+      await sendMail(MAILER_URL, MAILER_SECRET, { to: MARKING_EMAIL_TO, subject, body });
       await updateDoc(doc(db, "candidate_profiles", email), {
         overallLevel,
         readyToWork,
@@ -462,7 +450,7 @@ function openReportModal(profile, email) {
       });
       document.getElementById("report-modal").style.display = "none";
     } catch (e) {
-      errEl.textContent = "Send failed: " + (e.text || e.message || JSON.stringify(e));
+      errEl.textContent = "Send failed: " + (e.message || JSON.stringify(e));
     }
   });
 }
