@@ -5,18 +5,36 @@
 // matching the "second layer" approach already used in this project.
 //
 // onFlag(flag) is called with { type, detail, at } every time something
-// worth noting happens. The caller (quiz.js) pushes each flag to Firestore.
+// worth noting happens. The caller (quiz.js) pushes each flag to Firestore
+// as its own write, so this module is also responsible for not flooding
+// that with duplicates — see COOLDOWN_MS below.
 
 export function startProctoring(onFlag) {
   let tabSwitchCount = 0;
   let fullscreenExitCount = 0;
   let copyPasteBlockCount = 0;
 
+  // At most one flag of a given type per COOLDOWN_MS. Without this, a
+  // candidate holding down a blocked key (browsers auto-repeat keydown
+  // ~20-30x/sec while held) or mashing right-click/paste generates one
+  // Firestore write per event — a real session hit 1500+ flags this way.
+  // The per-action counters below still count every real occurrence in
+  // their text; this only limits how often a new flag document gets
+  // written, so a held key shows as one flag every ~1.5s instead of 30/sec.
+  const COOLDOWN_MS = 1500;
+  const lastFlagAt = {};
+  function emit(type, detail) {
+    const now = Date.now();
+    if (lastFlagAt[type] && now - lastFlagAt[type] < COOLDOWN_MS) return;
+    lastFlagAt[type] = now;
+    onFlag({ type, detail, at: now });
+  }
+
   // Tab switch / window blur
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       tabSwitchCount += 1;
-      onFlag({ type: "tab_switch", detail: `Tab/window switch #${tabSwitchCount}`, at: Date.now() });
+      emit("tab_switch", `Tab/window switch #${tabSwitchCount}`);
     }
   });
   window.addEventListener("blur", () => {
@@ -28,7 +46,7 @@ export function startProctoring(onFlag) {
   document.addEventListener("fullscreenchange", () => {
     if (!document.fullscreenElement) {
       fullscreenExitCount += 1;
-      onFlag({ type: "fullscreen_exit", detail: `Exited fullscreen #${fullscreenExitCount}`, at: Date.now() });
+      emit("fullscreen_exit", `Exited fullscreen #${fullscreenExitCount}`);
     }
   });
 
@@ -38,7 +56,7 @@ export function startProctoring(onFlag) {
     document.addEventListener(evt, (e) => {
       e.preventDefault();
       copyPasteBlockCount += 1;
-      onFlag({ type: "copy_paste_blocked", detail: `Blocked "${evt}" #${copyPasteBlockCount}`, at: Date.now() });
+      emit("copy_paste_blocked", `Blocked "${evt}" #${copyPasteBlockCount}`);
     });
   });
 
@@ -46,13 +64,18 @@ export function startProctoring(onFlag) {
   // cannot fully stop a determined candidate, same caveat as the rest of
   // this project's browser-signal proctoring).
   document.addEventListener("keydown", (e) => {
+    // Holding a key down fires repeated keydown events (e.repeat = true)
+    // at the OS's key-repeat rate — only the initial press is worth a
+    // flag; the cooldown above would catch the rest anyway, but skipping
+    // repeats outright avoids even evaluating/preventing them 30x/sec.
+    if (e.repeat) return;
     const blocked =
       e.key === "F12" ||
       (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key)) ||
       (e.ctrlKey && e.key === "u");
     if (blocked) {
       e.preventDefault();
-      onFlag({ type: "devtools_attempt", detail: "Attempted to open devtools/view-source", at: Date.now() });
+      emit("devtools_attempt", "Attempted to open devtools/view-source");
     }
   });
 }
