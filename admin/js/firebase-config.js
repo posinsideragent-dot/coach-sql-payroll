@@ -16,6 +16,6 @@ export const firebaseConfig = {
 // used both for the marking-sheet email (candidate site) and, from this
 // admin dashboard's Candidates tab, the admin-approved "completion report"
 // send once a candidate has passed all 5 days.
-export const MAILER_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
-export const MAILER_SECRET = "PASTE_YOUR_SHARED_SECRET_HERE";
+export const MAILER_URL = "https://script.google.com/macros/s/AKfycbyddpzS4M7uQQuTDuCpVkq-u88ywKRqgpf-hYI7WMCStr5WAXQOzxiJc1xueMAUbwrBmA/exec";
+export const MAILER_SECRET = "posinsider@6855";
 export const MARKING_EMAIL_TO = "posinsideragent@gmail.com";
