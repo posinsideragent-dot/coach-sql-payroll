@@ -7,13 +7,13 @@
 // keeps this in the CORS "simple request" category. Apps Script Web Apps
 // don't handle CORS preflight (OPTIONS) requests, so setting
 // "Content-Type: application/json" here would make every call fail.
-export async function sendMail(mailerUrl, mailerSecret, { to, subject, body }) {
+export async function sendMail(mailerUrl, mailerSecret, { to, subject, body, html }) {
   if (!mailerUrl || !mailerSecret) {
     throw new Error("MAILER_URL/MAILER_SECRET is not set in firebase-config.js.");
   }
   const res = await fetch(mailerUrl, {
     method: "POST",
-    body: JSON.stringify({ key: mailerSecret, to, subject, body }),
+    body: JSON.stringify({ key: mailerSecret, to, subject, body, html }),
   });
   const text = await res.text();
   let data;

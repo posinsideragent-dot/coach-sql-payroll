@@ -18,6 +18,16 @@ function computeLevel(score, maxScore) {
   const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
   return LEVELS.find((l) => pct >= l.min).label;
 }
+const LEVEL_COLORS = {
+  Advanced: { bg: "#e6f4ea", fg: "#1b7f1b" },
+  Intermediate: { bg: "#e8f0fe", fg: "#1a56db" },
+  Junior: { bg: "#fff4e5", fg: "#b26a00" },
+  Beginner: { bg: "#fdecea", fg: "#b00020" },
+};
+function levelBadge(level) {
+  const c = LEVEL_COLORS[level] || LEVEL_COLORS.Beginner;
+  return `<span style="background:${c.bg};color:${c.fg};font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;">${level}</span>`;
+}
 
 const DAY_NAMES = {
   1: "Getting Started & Employee Setup",
@@ -426,11 +436,24 @@ function openReportModal(profile, email) {
     const errEl = document.getElementById("rf-error");
     const overallLevel = document.getElementById("rf-level").value;
     const readyToWork = document.getElementById("rf-ready").value;
-    const dayLines = [1, 2, 3, 4, 5].map((d) => {
+    const dayLines = [];
+    const dayRowsHtml = [];
+    [1, 2, 3, 4, 5].forEach((d) => {
       const r = profile.perDay[d];
-      return `Day ${d} — ${DAY_NAMES[d]}: ${r.score} / ${r.maxScore} (${r.percent.toFixed(0)}%) — ${r.level}`;
+      dayLines.push(`Day ${d} — ${DAY_NAMES[d]}: ${r.score} / ${r.maxScore} (${r.percent.toFixed(0)}%) — ${r.level}`);
+      dayRowsHtml.push(`
+        <tr>
+          <td style="padding:6px 0;border-bottom:1px solid #f2f2f2;">Day ${d} — ${DAY_NAMES[d]}</td>
+          <td style="padding:6px 0;border-bottom:1px solid #f2f2f2;text-align:right;">${r.score}/${r.maxScore} (${r.percent.toFixed(0)}%)</td>
+          <td style="padding:6px 0;border-bottom:1px solid #f2f2f2;text-align:right;">${r.level}</td>
+        </tr>
+      `);
     });
-    const subject = `[SQL Payroll] ${profile.name} — Completion report`;
+    const completedAt = new Date().toLocaleString();
+    const overallColor = (LEVEL_COLORS[overallLevel] || LEVEL_COLORS.Beginner).fg;
+    const readyColor = readyToWork === "YES" ? "#1b7f1b" : "#b00020";
+
+    const subject = `SQL Payroll — ${profile.name}: All 5 Days Complete`;
     const body = [
       `Candidate: ${profile.name} <${email}>`,
       "",
@@ -439,10 +462,36 @@ function openReportModal(profile, email) {
       `Overall: ${totalScore} / ${totalMax} (${overallPercent.toFixed(1)}%)`,
       `Overall level: ${overallLevel}`,
       `Ready to start work: ${readyToWork}`,
-      `Completed: ${new Date().toLocaleString()}`,
+      `Completed: ${completedAt}`,
     ].join("\n");
+    const html = `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;">
+        <div style="background:#1b7f1b;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;">
+          <div style="font-size:12px;letter-spacing:0.5px;opacity:0.85;text-transform:uppercase;">SQL Payroll &middot; Onboarding</div>
+          <div style="font-size:18px;font-weight:700;margin-top:4px;">&#127881; All 5 Days Complete</div>
+        </div>
+        <div style="border:1px solid #e0e2e6;border-top:none;border-radius:0 0 8px 8px;padding:20px;">
+          <div style="font-size:16px;font-weight:600;color:#222;">${profile.name}</div>
+          <div style="color:#666;font-size:13px;margin-bottom:16px;">${email}</div>
+          <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
+            <tr style="color:#888;text-align:left;">
+              <th style="padding:6px 0;border-bottom:1px solid #e0e2e6;">Day</th>
+              <th style="padding:6px 0;border-bottom:1px solid #e0e2e6;text-align:right;">Score</th>
+              <th style="padding:6px 0;border-bottom:1px solid #e0e2e6;text-align:right;">Level</th>
+            </tr>
+            ${dayRowsHtml.join("")}
+          </table>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:14px;"><tr>
+            <td style="font-size:28px;font-weight:800;color:${overallColor};padding-right:10px;">${totalScore}/${totalMax}</td>
+            <td>${levelBadge(overallLevel)}</td>
+          </tr></table>
+          <div style="font-size:13px;color:#444;">Ready to start work: <b style="color:${readyColor};">${readyToWork}</b></div>
+          <div style="margin-top:4px;font-size:12px;color:#888;">Completed ${completedAt}</div>
+        </div>
+      </div>
+    `;
     try {
-      await sendMail(MAILER_URL, MAILER_SECRET, { to: MARKING_EMAIL_TO, subject, body });
+      await sendMail(MAILER_URL, MAILER_SECRET, { to: MARKING_EMAIL_TO, subject, body, html });
       await updateDoc(doc(db, "candidate_profiles", email), {
         overallLevel,
         readyToWork,
