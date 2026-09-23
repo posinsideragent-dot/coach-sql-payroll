@@ -275,6 +275,46 @@ async function loadPassingPercent() {
   document.getElementById("passing-percent-input").value = value;
 }
 
+// perDay[d].passed is written once, at submit time, against whatever
+// passingPercent was in effect then (see candidate/js/candidate-progress.js)
+// and is otherwise sticky — it never gets touched again. So lowering the
+// passing bar here would silently leave every day someone already attempted
+// stuck at its old pass/fail outcome unless something re-checks it. This
+// re-scores every existing attempt against the new bar, same sticky rule as
+// the candidate side (Boolean(prev.passed) || meets the new bar) — it can
+// only turn a FAIL into a PASS, never take away a pass already earned.
+async function reapplyPassingPercent(newPercent) {
+  const snap = await getDocs(collection(db, "candidate_profiles"));
+  const refs = [];
+  snap.forEach((docSnap) => {
+    const p = docSnap.data();
+    if (!p.perDay) return;
+    const updates = {};
+    const nextPerDay = { ...p.perDay };
+    let changed = false;
+    [1, 2, 3, 4, 5].forEach((d) => {
+      const r = p.perDay[d];
+      if (!r || r.passed) return;
+      if (r.percent >= newPercent) {
+        updates[`perDay.${d}.passed`] = true;
+        nextPerDay[d] = { ...r, passed: true };
+        changed = true;
+      }
+    });
+    if (!changed) return;
+    const nowAllPassed = [1, 2, 3, 4, 5].every((d) => nextPerDay[d]?.passed);
+    if (nowAllPassed !== Boolean(p.allPassed)) updates.allPassed = nowAllPassed;
+    refs.push({ id: docSnap.id, updates });
+  });
+
+  for (let i = 0; i < refs.length; i += 500) {
+    const batch = writeBatch(db);
+    refs.slice(i, i + 500).forEach(({ id, updates }) => batch.update(doc(db, "candidate_profiles", id), updates));
+    await batch.commit();
+  }
+  return refs.length;
+}
+
 document.getElementById("save-passing-percent-btn").addEventListener("click", async () => {
   const value = Number(document.getElementById("passing-percent-input").value);
   const savedEl = document.getElementById("passing-percent-saved");
@@ -282,9 +322,13 @@ document.getElementById("save-passing-percent-btn").addEventListener("click", as
     savedEl.textContent = "Enter a number between 0 and 100.";
     return;
   }
+  savedEl.textContent = "Saving…";
   await setDoc(doc(db, "settings", "config"), { passingPercent: value }, { merge: true });
-  savedEl.textContent = "Saved.";
-  setTimeout(() => { savedEl.textContent = ""; }, 2000);
+  const updatedCount = await reapplyPassingPercent(value);
+  savedEl.textContent = updatedCount > 0
+    ? `Saved — re-checked existing scores, updated ${updatedCount} candidate${updatedCount === 1 ? "" : "s"}.`
+    : "Saved.";
+  setTimeout(() => { savedEl.textContent = ""; }, 4000);
 });
 
 // ---------- Candidates tab: aggregated profiles ----------
